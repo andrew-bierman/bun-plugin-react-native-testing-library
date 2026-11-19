@@ -390,7 +390,7 @@ After that, every green push to `main` updates npm automatically (`feat`/`fix`/`
 
 This repository is a fork of [crvouga/bun-plugin-react-native-testing-library](https://github.com/crvouga/bun-plugin-react-native-testing-library) (MIT), maintained to evolve the plugin into an extensible React Native / Expo compatibility layer for `bun test`. Upstream is kept as the `upstream` remote; changes are structured to be upstreamable.
 
-Some compatibility shims and patterns are ported from [Censkh/bun-test-react-native](https://github.com/Censkh/bun-test-react-native) (MIT, © James Waterhouse). Ported files carry a header comment naming the source; see also `NOTICE`.
+Some compatibility shims and patterns may be ported from [Censkh/bun-test-react-native](https://github.com/Censkh/bun-test-react-native) (MIT, © James Waterhouse). Any ported file carries a header comment naming its source.
 
 ## License
 

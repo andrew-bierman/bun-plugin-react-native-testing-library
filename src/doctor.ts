@@ -12,6 +12,7 @@ import path from "node:path";
 import { collectCompatSources, readConsumerPackageJson } from "./compat-packages.ts";
 import { type ResolvedConfig, resolveConfig } from "./config.ts";
 import { LIBRARY_REGISTRY, resolveRegistry } from "./libraries/index.ts";
+import { checkExpoJestExpoVersions } from "./libraries/expo/versions.ts";
 
 export type DoctorShimRow = {
   name: string;
@@ -42,7 +43,7 @@ export type DoctorReport = {
   shims: DoctorShimRow[];
   coverage: DoctorCoverageRow[];
   uncovered: string[];
-  jestExpo: { present: boolean; version: string | null; note: string };
+  definitions: { expoVersion: string | null; jestExpoVersion: string | null; match: boolean; note?: string };
 };
 
 /** Dependencies worth coverage reporting: RN and Expo ecosystem shapes. */
@@ -84,22 +85,19 @@ function ecosystemDeps(pkg: {
   return [...names].sort();
 }
 
-function jestExpoInfo(cwd: string): DoctorReport["jestExpo"] {
-  try {
-    const abs = Bun.resolveSync("jest-expo/package.json", cwd);
-    const version = (JSON.parse(readFileSync(abs, "utf8")) as { version?: string }).version ?? null;
-    return {
-      present: true,
-      version,
-      note: "official native-module definitions are available for uncovered Expo modules",
-    };
-  } catch {
-    return {
-      present: false,
-      version: null,
-      note: "install jest-expo at your Expo SDK version to provide official native-module definitions",
-    };
-  }
+function definitionsInfo(cwd: string): DoctorReport["definitions"] {
+  const read = (pkg: string): string | null => {
+    try {
+      const abs = Bun.resolveSync(`${pkg}/package.json`, cwd);
+      return (JSON.parse(readFileSync(abs, "utf8")) as { version?: string }).version ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const expoVersion = read("expo");
+  const jestExpoVersion = read("jest-expo");
+  const pairing = checkExpoJestExpoVersions(expoVersion, jestExpoVersion);
+  return { expoVersion, jestExpoVersion, match: pairing.match, note: pairing.note };
 }
 
 /**
@@ -140,7 +138,7 @@ export function runDoctorAudit(cwd: string): DoctorReport {
     .map(([name, entry]) => ({ name, provenance: entry.provenance, state: entry.state, reason: entry.reason }))
     .sort((a, b) => (a.state === b.state ? a.name.localeCompare(b.name) : a.state.localeCompare(b.state)));
 
-  const jestExpo = jestExpoInfo(cwd);
+  const definitions = definitionsInfo(cwd);
   const coverage: DoctorCoverageRow[] = [];
   const uncovered: string[] = [];
   for (const dep of ecosystemDeps(pkg)) {
@@ -157,9 +155,20 @@ export function runDoctorAudit(cwd: string): DoctorReport {
       coverage.push({ dependency: dep, state: "shimmed", note: `shim "${byActivation.name}"` });
       continue;
     }
-    if ((dep.startsWith("expo-") || dep.startsWith("@expo/")) && jestExpo.present) {
-      coverage.push({ dependency: dep, state: "shimmed", note: "via jest-expo native-module definitions" });
-      continue;
+    if (dep.startsWith("expo-") || dep.startsWith("@expo/")) {
+      // Installed Expo SDK modules run through the expo native-module chain
+      // (package mocks + jest-expo definitions tables + generic fallback),
+      // which is active whenever the expo-modules-core shim is planned.
+      if (plan.ordered.some((s) => s.name === "expo")) {
+        coverage.push({
+          dependency: dep,
+          state: "shimmed",
+          note: definitions.match
+            ? "via the Expo native-module chain (SDK-matched jest-expo definitions available)"
+            : "via the Expo native-module chain (definitions source off-SDK)",
+        });
+        continue;
+      }
     }
     coverage.push({ dependency: dep, state: "uncovered" });
     uncovered.push(dep);
@@ -174,7 +183,7 @@ export function runDoctorAudit(cwd: string): DoctorReport {
     shims,
     coverage,
     uncovered,
-    jestExpo,
+    definitions,
   };
 }
 

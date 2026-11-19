@@ -44,9 +44,11 @@ function renderTable(report: DoctorReport): string {
   lines.push("");
 
   lines.push(
-    `jest-expo definitions: ${report.jestExpo.present ? `present (${report.jestExpo.version ?? "?"})` : "absent"}`,
+    `expo/jest-expo definitions: expo ${report.definitions.expoVersion ?? "absent"}, jest-expo ${report.definitions.jestExpoVersion ?? "absent"} — ${report.definitions.match ? "paired" : "MISMATCH"}`,
   );
-  lines.push(`  ${report.jestExpo.note}`);
+  if (report.definitions.note) {
+    lines.push(`  ${report.definitions.note}`);
+  }
   lines.push("");
 
   if (report.uncovered.length > 0) {
