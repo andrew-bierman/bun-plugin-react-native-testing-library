@@ -14,7 +14,6 @@ import { installJestShims } from "./jest-shims.ts";
 import { registerLibraryMocks } from "./libraries/index.ts";
 import { registerMocks } from "./mocks/index.ts";
 import { registerRntlMatchers, registerRntlScreenFix } from "./rntl.ts";
-
 const g = globalThis as typeof globalThis & Record<string, unknown>;
 
 // --- React / RN test environment globals ---
@@ -123,7 +122,7 @@ const config = loadConfig();
 const strategy = config.strategy === "auto" ? "namespace" : config.strategy;
 
 registerMocks(config);
-registerLibraryMocks(config);
+registerLibraryMocks(config, { localShims: config.compat.localShims });
 registerRntlScreenFix();
 
 plugin(

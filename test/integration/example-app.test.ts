@@ -37,6 +37,15 @@ async function runBunTest(
   return { exitCode, stdout, stderr };
 }
 
+function pluginSourceStamp(): string {
+  const rev = Bun.spawnSync(["git", "-C", ROOT, "rev-parse", "HEAD"]);
+  const head = rev.stdout.toString().trim();
+  // The sandbox installs a copy of the file: dependency, so any source change
+  // (new commit or dirty tree) must invalidate the cached install.
+  const status = Bun.spawnSync(["git", "-C", ROOT, "status", "--porcelain", "--", "src", "package.json"]);
+  return `${head}:${status.stdout.toString().trim() === "" ? "clean" : "dirty"}`;
+}
+
 function packageJson(): string {
   return JSON.stringify(
     {
@@ -50,6 +59,8 @@ function packageJson(): string {
         "@testing-library/react-native": "14.0.1",
         "test-renderer": "1.2.0",
       },
+      // eslint-disable-next-line no-constant-condition
+      pluginSourceStamp: pluginSourceStamp(),
     },
     null,
     2,

@@ -4,6 +4,9 @@
  * Pure helpers — no side effects at import time.
  */
 
+import type { LibraryShim } from "./libraries/helpers.ts";
+import { defineShim } from "./shim.ts";
+
 export type Platform = "ios" | "android";
 
 export type LoadStrategy = "auto" | "direct" | "namespace";
@@ -21,6 +24,21 @@ export type WindowMetrics = {
   height: number;
   scale: number;
   fontScale: number;
+};
+
+/**
+ * Consumer extension surface, set via `rn-bun.config.ts` or plugin options.
+ * - `shims`: project-local shims (validated through `defineShim` on load)
+ * - `compatPackages`: npm compat packages to load explicitly
+ */
+export type CompatConfig = {
+  shims?: readonly LibraryShim[];
+  compatPackages?: readonly string[];
+};
+
+export type ResolvedCompat = {
+  localShims: readonly LibraryShim[];
+  compatPackages: readonly string[];
 };
 
 export type PluginOptions = {
@@ -49,6 +67,8 @@ export type PluginOptions = {
   libraryMocks?: LibraryMocksOption;
   /** Registry shim names to skip entirely, regardless of `libraryMocks`. */
   disable?: readonly string[];
+  /** Consumer compatibility extension surface. */
+  compat?: CompatConfig;
 };
 
 export type ResolvedConfig = {
@@ -62,6 +82,7 @@ export type ResolvedConfig = {
   strategy: LoadStrategy;
   libraryMocks: LibraryMocksOption;
   disable: readonly string[];
+  compat: ResolvedCompat;
 };
 
 export const DEFAULT_ASSET_EXTS = [
@@ -121,6 +142,10 @@ export function resolveConfig(options: PluginOptions = {}): ResolvedConfig {
     strategy: options.strategy ?? "auto",
     libraryMocks: options.libraryMocks ?? "auto",
     disable: options.disable ?? [],
+    compat: {
+      localShims: options.compat?.shims ?? [],
+      compatPackages: options.compat?.compatPackages ?? [],
+    },
   };
 }
 
@@ -162,6 +187,18 @@ export function loadConfig(): ResolvedConfig {
 
   const libraryMocks = parseLibraryMocksEnv(process.env.RN_BUN_LIBRARY_MOCKS) ?? fileOpts.libraryMocks;
 
+  const compat = fileOpts.compat;
+  if (compat?.shims) {
+    // Validate consumer shims at load time so a broken shim names its file
+    // and reason here, not as a mystery failure during registration.
+    try {
+      for (const shim of compat.shims) defineShim(shim);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(`[rn-bun] rn-bun.config.ts compat.shims: ${reason}`);
+    }
+  }
+
   return resolveConfig({
     ...fileOpts,
     platform: platform ?? fileOpts.platform,
@@ -169,5 +206,7 @@ export function loadConfig(): ResolvedConfig {
     strategy: strategy ?? fileOpts.strategy,
     cacheDir: process.env.RN_BUN_CACHE_DIR ?? fileOpts.cacheDir,
     libraryMocks,
+    disable: fileOpts.disable,
+    compat,
   });
 }

@@ -121,6 +121,43 @@ Configure via `createReactNativePlugin(options)`, env vars, or optional `./rn-bu
 | `window` | — | `{390,844,3,1}` | `Dimensions` / `useWindowDimensions` metrics |
 | `strategy` | `RN_BUN_STRATEGY` | `"auto"` → `"namespace"` | How to intercept RN sources (see pitfall below) |
 | `libraryMocks` | `RN_BUN_LIBRARY_MOCKS` | `"auto"` | Auto-register third-party library shims when packages resolve (`false` / comma-separated names to filter) |
+| `disable` | — | `[]` | Registry shim names to skip entirely |
+| `compat.shims` | — | `[]` | Project-local shims (see Extending below) |
+| `compat.compatPackages` | — | `[]` | npm compat packages to load explicitly |
+
+## Extending: your own library shims
+
+When a native library has no built-in shim, add one in **one small file** — no fork, no package edits. Put it in `rn-bun.config.ts` at your app root:
+
+```ts
+// rn-bun.config.ts
+import { defineShim } from "bun-plugin-react-native-testing-library";
+
+export default {
+  compat: {
+    shims: [
+      defineShim({
+        name: "my-fancy-view",
+        packages: ["react-native-fancy-view"], // activates only when installed
+        provenance: "local",
+        surface: "presentation", // or "behavioral" when the mock models native behavior
+        targets: ["react-native-fancy-view"], // declared mock targets (conflict detection)
+        register: () => {
+          /* mock.module(...) your library's surface */
+        },
+      }),
+    ],
+  },
+};
+```
+
+Registry semantics:
+
+- Registration order is deterministic: built-ins (by `priority`), then npm compat packages, then your local shims.
+- Two active shims claiming the same target is a startup error naming both, unless the later one sets `override: true` (or you `disable` one via `disable: ["name"]`).
+- Programmatic embedders can call `registerCompat({ compat: { shims: [...] } })` from a custom preload instead of the config file.
+
+See [`examples/local-shim/example-shim.ts`](examples/local-shim/example-shim.ts) for a complete shim, and run `bun-rn-doctor audit` to see which shims are active and why (below).
 
 ## Third-party library compatibility
 
