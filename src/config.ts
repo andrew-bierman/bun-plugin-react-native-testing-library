@@ -47,6 +47,8 @@ export type PluginOptions = {
   strategy?: LoadStrategy;
   /** Third-party library mock registration. Default: `"auto"`. */
   libraryMocks?: LibraryMocksOption;
+  /** Registry shim names to skip entirely, regardless of `libraryMocks`. */
+  disable?: readonly string[];
 };
 
 export type ResolvedConfig = {
@@ -59,6 +61,7 @@ export type ResolvedConfig = {
   window: WindowMetrics;
   strategy: LoadStrategy;
   libraryMocks: LibraryMocksOption;
+  disable: readonly string[];
 };
 
 export const DEFAULT_ASSET_EXTS = [
@@ -117,6 +120,7 @@ export function resolveConfig(options: PluginOptions = {}): ResolvedConfig {
     window: { ...DEFAULT_WINDOW, ...options.window },
     strategy: options.strategy ?? "auto",
     libraryMocks: options.libraryMocks ?? "auto",
+    disable: options.disable ?? [],
   };
 }
 
