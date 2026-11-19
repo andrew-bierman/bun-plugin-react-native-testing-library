@@ -11,10 +11,11 @@ import { plugin } from "bun";
 import { createReactNativePlugin } from "./index.ts";
 import { loadConfig } from "./config.ts";
 import { installJestShims } from "./jest-shims.ts";
-import { registerLibraryMocks } from "./libraries/index.ts";
+import { LIBRARY_REGISTRY, registerLibraryMocks, resolveRegistry } from "./libraries/index.ts";
 import { registerMocks } from "./mocks/index.ts";
 import { registerRntlMatchers, registerRntlScreenFix } from "./rntl.ts";
 import { collectCompatSources } from "./compat-packages.ts";
+import { scanUnresolvedEcosystemImports } from "./diagnostics.ts";
 const g = globalThis as typeof globalThis & Record<string, unknown>;
 
 // --- React / RN test environment globals ---
@@ -132,10 +133,39 @@ for (const err of compatSources.errors) {
   // Misconfigured compat packages must be visible, never silent.
   console.warn(err);
 }
+const plan = resolveRegistry(config, {
+  localShims: config.compat.localShims,
+  packageShims: compatSources.packageShims,
+});
 registerLibraryMocks(config, {
   localShims: config.compat.localShims,
   packageShims: compatSources.packageShims,
 });
+
+// Fail-closed guidance for ecosystem imports the suite will not resolve:
+// Bun reports the native "Cannot find package" error; the scan prints the
+// structured fix (existing shim, scaffold command) beside it. Skipped inside
+// this repo's own dev suite, whose tests intentionally reference packages
+// that cannot resolve.
+const selfRepo = (() => {
+  try {
+    const pkg = JSON.parse(require("node:fs").readFileSync(`${process.cwd()}/package.json`, "utf8")) as {
+      name?: string;
+    };
+    return pkg.name === "bun-plugin-react-native-testing-library";
+  } catch {
+    return false;
+  }
+})();
+if (!selfRepo) {
+  const plannedNames = new Set(plan.ordered.map((s) => s.name));
+  const disabledShims = LIBRARY_REGISTRY.filter(
+    (s) => !plannedNames.has(s.name) && !plan.unavailable.includes(s.name),
+  ).map((s) => ({ name: s.name, packages: s.packages, targets: s.targets }));
+  for (const warning of scanUnresolvedEcosystemImports(process.cwd(), disabledShims)) {
+    console.warn(warning);
+  }
+}
 registerRntlScreenFix();
 
 plugin(

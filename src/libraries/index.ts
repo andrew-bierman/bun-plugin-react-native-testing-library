@@ -134,6 +134,8 @@ export type RegistrySources = {
   packageShims?: readonly LibraryShim[];
   /** Shims contributed by the consumer project. */
   localShims?: readonly LibraryShim[];
+  /** Directory for package resolution. Default: process.cwd(). */
+  cwd?: string;
 };
 
 export type RegistryPlan = {
@@ -157,10 +159,6 @@ function shouldRegister(shim: LibraryShim, option: ResolvedConfig["libraryMocks"
   return option.includes(shim.name);
 }
 
-function byProvenance(shim: LibraryShim, provenance: LibraryShim["provenance"]): boolean {
-  return (shim.provenance ?? "builtin") === provenance;
-}
-
 /**
  * Plan the active shim set: built-ins by ascending priority, then package
  * shims, then local shims. Conflict detection runs over declared mock targets
@@ -168,7 +166,7 @@ function byProvenance(shim: LibraryShim, provenance: LibraryShim["provenance"]):
  * naming both shims, unless the later one declares `override`.
  */
 export function resolveRegistry(config: ResolvedConfig, sources: RegistrySources = {}): RegistryPlan {
-  const cwd = process.cwd();
+  const cwd = sources.cwd ?? process.cwd();
   const option = config.libraryMocks;
 
   if (Array.isArray(option)) {
@@ -190,10 +188,15 @@ export function resolveRegistry(config: ResolvedConfig, sources: RegistrySources
   const planDisabled: string[] = [];
 
   const builtinList = (sources.builtins ?? LIBRARY_REGISTRY)
-    .filter((s) => byProvenance(s, "builtin"))
     .map((shim, i) => ({ shim, key: (shim.priority ?? 100) * 10000 + i }))
     .sort((a, b) => a.key - b.key)
-    .map((e) => e.shim);
+    .map((e) => ({ ...e.shim, provenance: e.shim.provenance ?? "builtin" }) as LibraryShim);
+  const packageList = (sources.packageShims ?? []).map(
+    (shim) => ({ ...shim, provenance: shim.provenance ?? "package" }) as LibraryShim,
+  );
+  const localList = (sources.localShims ?? []).map(
+    (shim) => ({ ...shim, provenance: shim.provenance ?? "local" }) as LibraryShim,
+  );
 
   const ordered: LibraryShim[] = [];
   const claimed = new Map<string, string>();
@@ -232,8 +235,8 @@ export function resolveRegistry(config: ResolvedConfig, sources: RegistrySources
   };
 
   for (const shim of builtinList) consider(shim);
-  for (const shim of sources.packageShims ?? []) if (byProvenance(shim, "package")) consider(shim);
-  for (const shim of sources.localShims ?? []) if (byProvenance(shim, "local")) consider(shim);
+  for (const shim of packageList) consider(shim);
+  for (const shim of localList) consider(shim);
 
   return { ordered, filteredOut, disabled: planDisabled, unavailable, overridden, conflicts };
 }
