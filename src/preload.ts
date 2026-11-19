@@ -98,7 +98,11 @@ if (typeof win.location === "undefined") {
 }
 
 if (typeof g.requestAnimationFrame !== "function") {
-  g.requestAnimationFrame = (cb: (time: number) => void) => setTimeout(() => cb(Date.now()), 0);
+  // Return type is annotated and cast because the global setTimeout overload
+  // that TS picks depends on file-inclusion order (bun-types vs @types/node
+  // both declare globals); the runtime value is a number id.
+  g.requestAnimationFrame = (cb: (time: number) => void): number =>
+    setTimeout(() => cb(Date.now()), 0) as unknown as number;
 }
 if (typeof g.cancelAnimationFrame !== "function") {
   g.cancelAnimationFrame = (id: number | null | undefined) => {

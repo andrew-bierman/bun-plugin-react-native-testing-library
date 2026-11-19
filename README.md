@@ -157,7 +157,24 @@ Registry semantics:
 - Two active shims claiming the same target is a startup error naming both, unless the later one sets `override: true` (or you `disable` one via `disable: ["name"]`).
 - Programmatic embedders can call `registerCompat({ compat: { shims: [...] } })` from a custom preload instead of the config file.
 
-See [`examples/local-shim/example-shim.ts`](examples/local-shim/example-shim.ts) for a complete shim, and run `bun-rn-doctor audit` to see which shims are active and why (below).
+See [`examples/local-shim/example-shim.ts`](examples/local-shim/example-shim.ts) for a complete shim.
+
+## Diagnostics: `bun-rn-doctor`
+
+```bash
+bunx bun-rn-doctor            # audit (default): which shims are planned, which deps are uncovered
+bunx bun-rn-doctor audit --json   # machine-readable report
+bunx bun-rn-doctor scaffold react-native-fancy-view   # write rn-bun.shims/<pkg>.ts starter
+```
+
+The audit plans the registry exactly like the preload does but registers nothing, so its report matches what a real run activates. It reports:
+
+- discovered compat packages and any load errors,
+- every registry shim with its state (`planned` / `unavailable` / `disabled` / `filtered`) and reason,
+- per-dependency coverage for React Native / Expo ecosystem deps,
+- whether `jest-expo` native-module definitions are available as the official fallback.
+
+Exit code is `1` when uncovered dependencies or broken compat packages are found; the report ends with the exact `scaffold` command for each gap.
 
 ## Third-party library compatibility
 

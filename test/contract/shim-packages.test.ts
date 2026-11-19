@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, test, beforeAll } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { discoverCompatPackages, loadCompatPackageShims } from "../../src/compat-packages.ts";

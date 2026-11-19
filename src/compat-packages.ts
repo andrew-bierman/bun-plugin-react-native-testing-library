@@ -100,14 +100,25 @@ export function loadCompatPackageShims(name: string, cwd: string): CompatPackage
 export function collectCompatSources(
   compatPackages: readonly string[],
   cwd: string,
-): { packageShims: LibraryShim[]; errors: string[] } {
+): {
+  packageShims: LibraryShim[];
+  packages: { name: string; loaded: boolean; shims: string[]; errors: string[] }[];
+  errors: string[];
+} {
   const names = discoverCompatPackages(cwd, compatPackages);
   const packageShims: LibraryShim[] = [];
+  const packages: { name: string; loaded: boolean; shims: string[]; errors: string[] }[] = [];
   const errors: string[] = [];
   for (const name of names) {
     const loaded = loadCompatPackageShims(name, cwd);
     packageShims.push(...loaded.shims);
+    packages.push({
+      name: loaded.name,
+      loaded: loaded.errors.length === 0,
+      shims: loaded.shims.map((s) => s.name),
+      errors: loaded.errors,
+    });
     errors.push(...loaded.errors);
   }
-  return { packageShims, errors };
+  return { packageShims, packages, errors };
 }
