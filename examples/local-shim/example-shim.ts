@@ -8,6 +8,7 @@
  */
 
 import { defineShim, type LibraryShim } from "../../src/index.ts";
+import { mockBoth } from "../../src/libraries/helpers.ts";
 
 /**
  * Presentation-only example: renders `FancyView` from the (fictional)
@@ -24,10 +25,6 @@ export const exampleLocalShim: LibraryShim = defineShim({
   register: () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { View } = require("react-native") as typeof import("react-native");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { mockBoth } = require("../../src/libraries/helpers.ts") as {
-      mockBoth: (specifier: string, factory: () => unknown) => void;
-    };
     mockBoth("react-native-fancy-view", () => ({
       default: View,
       FancyView: View,
