@@ -7,7 +7,7 @@
  * resolves to a mock: unknown behavior must fail clearly (fail-closed).
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { packageResolves } from "./libraries/helpers.ts";
 
 const ECOSYSTEM_SHAPES = [
@@ -100,7 +100,7 @@ function* iterTestFiles(dir: string, depth: number, count: { n: number }): Gener
     const full = `${dir}/${entry}`;
     let isDir = false;
     try {
-      isDir = !require("node:fs").statSync(full).isFile();
+      isDir = !statSync(full).isFile();
     } catch {
       continue;
     }

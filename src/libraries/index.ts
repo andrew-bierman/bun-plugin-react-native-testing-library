@@ -119,6 +119,8 @@ export const LIBRARY_REGISTRY: readonly LibraryShim[] = [
 export type RegisterLibraryMocksResult = {
   activated: string[];
   skipped: string[];
+  /** Names held back by the `libraryMocks` filter (kept distinct from failures). */
+  filteredOut: string[];
   /** Same-target conflicts that an explicit `override` resolved. */
   overridden: { target: string; winner: string; loser: string }[];
   /** Names skipped through `config.disable`. */
@@ -277,6 +279,7 @@ export function registerLibraryMocks(
   return {
     activated,
     skipped: skippedAll,
+    filteredOut: plan.filteredOut,
     overridden: plan.overridden,
     disabled: plan.disabled,
     unavailable: plan.unavailable,

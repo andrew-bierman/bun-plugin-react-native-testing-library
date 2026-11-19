@@ -12,6 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import type { LibraryShim } from "./libraries/helpers.ts";
+import { tryRequire } from "./libraries/helpers.ts";
 import { defineShim } from "./shim.ts";
 
 export const COMPAT_PACKAGE_PATTERN = /^bun-rn-compat-/;
@@ -23,6 +24,22 @@ export type CompatPackageLoad = {
 };
 
 /**
+ * Read the consumer's package.json. Returns an empty object when absent or
+ * unreadable, so callers fall back to explicit configuration only.
+ */
+export function readConsumerPackageJson(cwd: string): {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+} {
+  try {
+    return JSON.parse(readFileSync(`${cwd}/package.json`, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Package names to load: explicit entries first, then `bun-rn-compat-*`
  * dependencies and devDependencies from the consumer's package.json.
  */
@@ -31,38 +48,19 @@ export function discoverCompatPackages(cwd: string, explicit: readonly string[] 
   for (const name of explicit) {
     if (typeof name === "string" && name !== "") found.add(name);
   }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pkg = JSON.parse(readFileSync(`${cwd}/package.json`, "utf8")) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    for (const section of [pkg.dependencies, pkg.devDependencies]) {
-      for (const name of Object.keys(section ?? {})) {
-        if (COMPAT_PACKAGE_PATTERN.test(name)) found.add(name);
-      }
+  const pkg = readConsumerPackageJson(cwd);
+  for (const section of [pkg.dependencies, pkg.devDependencies]) {
+    for (const name of Object.keys(section ?? {})) {
+      if (COMPAT_PACKAGE_PATTERN.test(name)) found.add(name);
     }
-  } catch {
-    // No readable package.json: only explicit entries apply.
   }
   return [...found];
 }
 
 /** Load and validate the shims one compat package exports. */
 export function loadCompatPackageShims(name: string, cwd: string): CompatPackageLoad {
-  let mod: unknown = null;
-  let resolvedFrom: string | null = null;
-  for (const specifier of [`${name}/shim`, name]) {
-    try {
-      const abs = Bun.resolveSync(specifier, cwd);
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      mod = require(abs);
-      resolvedFrom = abs;
-      break;
-    } catch {
-      // try the next specifier
-    }
-  }
+  // `<pkg>/shim` is the documented export; the package root is the fallback.
+  const mod = tryRequire(`${name}/shim`, cwd) ?? tryRequire(name, cwd);
   if (mod == null) {
     return {
       name,
@@ -81,9 +79,7 @@ export function loadCompatPackageShims(name: string, cwd: string): CompatPackage
     try {
       shims.push(defineShim(candidate as LibraryShim));
     } catch (err) {
-      errors.push(
-        `[rn-bun] compat package "${name}" (${resolvedFrom ?? name}): ${err instanceof Error ? err.message : String(err)}`,
-      );
+      errors.push(`[rn-bun] compat package "${name}": ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   if (!Array.isArray(raw)) {

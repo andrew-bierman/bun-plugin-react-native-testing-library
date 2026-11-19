@@ -9,7 +9,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { collectCompatSources } from "./compat-packages.ts";
+import { collectCompatSources, readConsumerPackageJson } from "./compat-packages.ts";
 import { type ResolvedConfig, resolveConfig } from "./config.ts";
 import { LIBRARY_REGISTRY, resolveRegistry } from "./libraries/index.ts";
 
@@ -82,17 +82,6 @@ function ecosystemDeps(pkg: {
     }
   }
   return [...names].sort();
-}
-
-function readConsumerPackageJson(cwd: string): {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-} {
-  try {
-    return JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8"));
-  } catch {
-    return {};
-  }
 }
 
 function jestExpoInfo(cwd: string): DoctorReport["jestExpo"] {
