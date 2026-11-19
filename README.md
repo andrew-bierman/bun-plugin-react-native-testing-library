@@ -178,7 +178,7 @@ Exit code is `1` when uncovered dependencies or broken compat packages are found
 
 ## Third-party library compatibility
 
-When a package is installed in the consumer, preload auto-registers a shim (`libraryMocks: "auto"`). Proven in [`test/real-world/`](test/real-world/) against the versions below.
+When a package is installed in the consumer, preload auto-registers a shim (`libraryMocks: "auto"`). Proven in [`test/real-world/`](test/real-world/) against the versions below. Per-library coverage verdicts live in [`docs/compatibility.md`](docs/compatibility.md).
 
 Fail-closed scanners (`test/contract/deep-path-inventory.test.ts`, `test/contract/import-surface.test.ts`) walk the sandbox catalog: every deep `react-native/Libraries|src/...` import must be in `DEEP_PATHS`, every direct sandbox dependency must be catalogued (or infra-allowlisted), and every native surface must map to a registry shim. Coverage evidence is written to `.compat-out/coverage-manifest.json` by `bun check` (not committed).
 
