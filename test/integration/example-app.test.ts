@@ -11,6 +11,7 @@ import { Pressable, Text, View } from "react-native";
 import { render } from "@testing-library/react-native";
 import { existsSync, mkdirSync, rmSync, writeFileSync, cpSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const CACHE = path.join(ROOT, ".virt-rn-fixture", "example-sandbox");
@@ -35,15 +36,6 @@ async function runBunTest(
     proc.exited,
   ]);
   return { exitCode, stdout, stderr };
-}
-
-function pluginSourceStamp(): string {
-  const rev = Bun.spawnSync(["git", "-C", ROOT, "rev-parse", "HEAD"]);
-  const head = rev.stdout.toString().trim();
-  // The sandbox installs a copy of the file: dependency, so any source change
-  // (new commit or dirty tree) must invalidate the cached install.
-  const status = Bun.spawnSync(["git", "-C", ROOT, "status", "--porcelain", "--", "src", "package.json"]);
-  return `${head}:${status.stdout.toString().trim() === "" ? "clean" : "dirty"}`;
 }
 
 function packageJson(): string {

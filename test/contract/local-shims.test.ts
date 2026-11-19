@@ -9,13 +9,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { defineShim } from "../../src/shim.ts";
 import { loadConfig, resolveConfig } from "../../src/config.ts";
 import { registerCompat } from "../../src/index.ts";
 import { exampleLocalShim } from "../../examples/local-shim/example-shim.ts";
+import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
 
 const g = globalThis as typeof globalThis & Record<string, unknown>;
 
@@ -135,26 +136,27 @@ describe("contract: local shim under a real preload spawn", () => {
 
   async function ensureSandbox(): Promise<void> {
     mkdirSync(CACHE, { recursive: true });
-    writeFileSync(
-      path.join(CACHE, "package.json"),
-      JSON.stringify(
-        {
-          name: "compat-config-sandbox",
-          type: "module",
-          private: true,
-          dependencies: {
-            "bun-plugin-react-native-testing-library": `file:${ROOT}`,
-            react: "19.2.8",
-            "react-native": "0.87.1",
-            "@testing-library/react-native": "14.0.1",
-            "test-renderer": "1.2.0",
-          },
+    const pkgPath = path.join(CACHE, "package.json");
+    const next = JSON.stringify(
+      {
+        name: "compat-config-sandbox",
+        type: "module",
+        private: true,
+        dependencies: {
+          "bun-plugin-react-native-testing-library": `file:${ROOT}`,
+          react: "19.2.8",
+          "react-native": "0.87.1",
+          "@testing-library/react-native": "14.0.1",
+          "test-renderer": "1.2.0",
         },
-        null,
-        2,
-      ),
+        pluginSourceStamp: pluginSourceStamp(),
+      },
+      null,
+      2,
     );
-    if (!existsSync(path.join(CACHE, "node_modules"))) {
+    const prev = existsSync(pkgPath) ? readFileSync(pkgPath, "utf8") : "";
+    writeFileSync(pkgPath, next);
+    if (!existsSync(path.join(CACHE, "node_modules")) || prev !== next) {
       const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
       const code = await install.exited;
       if (code !== 0) {

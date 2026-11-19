@@ -14,6 +14,7 @@ import { installJestShims } from "./jest-shims.ts";
 import { registerLibraryMocks } from "./libraries/index.ts";
 import { registerMocks } from "./mocks/index.ts";
 import { registerRntlMatchers, registerRntlScreenFix } from "./rntl.ts";
+import { collectCompatSources } from "./compat-packages.ts";
 const g = globalThis as typeof globalThis & Record<string, unknown>;
 
 // --- React / RN test environment globals ---
@@ -122,7 +123,15 @@ const config = loadConfig();
 const strategy = config.strategy === "auto" ? "namespace" : config.strategy;
 
 registerMocks(config);
-registerLibraryMocks(config, { localShims: config.compat.localShims });
+const compatSources = collectCompatSources(config.compat.compatPackages, process.cwd());
+for (const err of compatSources.errors) {
+  // Misconfigured compat packages must be visible, never silent.
+  console.warn(err);
+}
+registerLibraryMocks(config, {
+  localShims: config.compat.localShims,
+  packageShims: compatSources.packageShims,
+});
 registerRntlScreenFix();
 
 plugin(

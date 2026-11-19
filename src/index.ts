@@ -26,6 +26,7 @@ export { defineShim } from "./shim.ts";
 export type { LibraryShim, ShimProvenance } from "./libraries/helpers.ts";
 export { registerLibraryMocks } from "./libraries/index.ts";
 import { registerLibraryMocks } from "./libraries/index.ts";
+import { collectCompatSources } from "./compat-packages.ts";
 
 /**
  * Register consumer compatibility shims for a custom preload entry:
@@ -38,7 +39,15 @@ import { registerLibraryMocks } from "./libraries/index.ts";
  */
 export function registerCompat(options: PluginOptions = {}) {
   const config = resolveConfig(options);
-  return registerLibraryMocks(config, { localShims: config.compat.localShims });
+  const compatSources = collectCompatSources(config.compat.compatPackages, process.cwd());
+  for (const err of compatSources.errors) {
+    // Misconfigured compat packages must be visible, never silent.
+    console.warn(err);
+  }
+  return registerLibraryMocks(config, {
+    localShims: config.compat.localShims,
+    packageShims: compatSources.packageShims,
+  });
 }
 export { resolvePlatformFile, candidatePaths, brokenResolveSkipNative } from "./resolve.ts";
 export { transformFlow, createTransformCache, PLUGIN_VERSION } from "./transform-flow.ts";
