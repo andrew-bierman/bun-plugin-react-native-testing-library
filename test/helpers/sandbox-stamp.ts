@@ -17,7 +17,7 @@ export function pluginSourceStamp(): string {
   return `${head}:${status.stdout.toString().trim() === "" ? "clean" : "dirty"}`;
 }
 
-export { REPO_ROOT as PLUGIN_REPO_ROOT };
+export { REPO_ROOT };
 
 const INSTALL_LOCK_DIR = path.join(REPO_ROOT, ".virt-rn-fixture", ".install-lock");
 

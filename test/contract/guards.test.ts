@@ -10,7 +10,8 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { LIBRARY_REGISTRY } from "../../src/libraries/index.ts";
+import { LIBRARY_REGISTRY, registerLibraryMocks } from "../../src/libraries/index.ts";
+import { resolveConfig } from "../../src/config.ts";
 import { pluginSourceStamp, withInstallLock } from "../helpers/sandbox-stamp.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -54,12 +55,6 @@ describe("guards: behavioral spot contracts", () => {
       process.chdir(sandbox);
       // Register the shims exactly like preload does, then require through
       // the mocked surface.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { registerLibraryMocks } = require("../../src/libraries/index.ts") as {
-        registerLibraryMocks: (config: unknown) => { activated: string[] };
-      };
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { resolveConfig } = require("../../src/config.ts") as { resolveConfig: (o: unknown) => unknown };
       const result = registerLibraryMocks(resolveConfig({ libraryMocks: "auto" }));
       expect(result.activated.length).toBeGreaterThan(5);
       // eslint-disable-next-line @typescript-eslint/no-require-imports
