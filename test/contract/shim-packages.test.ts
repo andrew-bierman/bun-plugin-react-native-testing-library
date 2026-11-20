@@ -14,7 +14,7 @@ import path from "node:path";
 import { discoverCompatPackages, loadCompatPackageShims } from "../../src/compat-packages.ts";
 import { registerCompat } from "../../src/index.ts";
 
-import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
+import { pluginSourceStamp, withInstallLock } from "../helpers/sandbox-stamp.ts";
 
 describe("contract: compat package discovery", () => {
   test("finds bun-rn-compat-* dependencies and devDependencies", () => {
@@ -113,12 +113,14 @@ describe("contract: compat package under a real preload spawn", () => {
     const prev = existsSync(pkgPath) ? readFileSync(pkgPath, "utf8") : "";
     writeFileSync(pkgPath, next);
     if (!existsSync(path.join(CACHE, "node_modules")) || prev !== next) {
-      const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
-      const code = await install.exited;
-      if (code !== 0) {
-        const err = await new Response(install.stderr).text();
-        throw new Error(`compat-pkg sandbox install failed: ${err.slice(-400)}`);
-      }
+      await withInstallLock(async () => {
+        const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
+        const code = await install.exited;
+        if (code !== 0) {
+          const err = await new Response(install.stderr).text();
+          throw new Error(`compat-pkg sandbox install failed: ${err.slice(-400)}`);
+        }
+      });
     }
     writeFileSync(
       path.join(CACHE, "bunfig.toml"),
@@ -173,12 +175,14 @@ describe("registerCompat: installed package activates", () => {
         2,
       ),
     );
-    const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: SANDBOX, stdout: "pipe", stderr: "pipe" });
-    const code = await install.exited;
-    if (code !== 0) {
-      const err = await new Response(install.stderr).text();
-      throw new Error(`compat-packages app install failed: ${err.slice(-400)}`);
-    }
+    await withInstallLock(async () => {
+      const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: SANDBOX, stdout: "pipe", stderr: "pipe" });
+      const code = await install.exited;
+      if (code !== 0) {
+        const err = await new Response(install.stderr).text();
+        throw new Error(`compat-packages app install failed: ${err.slice(-400)}`);
+      }
+    });
   });
 
   test("shim from an installed bun-rn-compat-* dependency activates via registerCompat", () => {

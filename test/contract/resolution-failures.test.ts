@@ -10,7 +10,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { buildResolutionError, isEcosystemSpecifier } from "../../src/diagnostics.ts";
-import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
+import { pluginSourceStamp, withInstallLock } from "../helpers/sandbox-stamp.ts";
 
 describe("diagnostics: ecosystem shape detection", () => {
   test("react-native, expo, and community shapes qualify", () => {
@@ -84,12 +84,14 @@ describe("diagnostics: integration under a real preload spawn", () => {
         pluginSourceStamp: pluginSourceStamp(),
       }),
     );
-    const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
-    const code = await install.exited;
-    if (code !== 0) {
-      const err = await new Response(install.stderr).text();
-      throw new Error(`diagnostics sandbox install failed: ${err.slice(-400)}`);
-    }
+    await withInstallLock(async () => {
+      const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
+      const code = await install.exited;
+      if (code !== 0) {
+        const err = await new Response(install.stderr).text();
+        throw new Error(`diagnostics sandbox install failed: ${err.slice(-400)}`);
+      }
+    });
     writeFileSync(
       path.join(CACHE, "bunfig.toml"),
       `[test]\npreload = ["bun-plugin-react-native-testing-library/preload"]\n`,

@@ -6,6 +6,7 @@
  */
 
 import path from "node:path";
+import { mkdirSync, rmSync } from "node:fs";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
 
@@ -17,3 +18,32 @@ export function pluginSourceStamp(): string {
 }
 
 export { REPO_ROOT as PLUGIN_REPO_ROOT };
+
+const INSTALL_LOCK_DIR = path.join(REPO_ROOT, ".virt-rn-fixture", ".install-lock");
+
+/**
+ * Serialize sandbox `bun install` runs. Concurrent installs that copy the same
+ * `file:` dependency from one source tree have raced into partial copies;
+ * installs are infrequent (stamp-gated) so a single lock is enough.
+ */
+export async function withInstallLock<T>(fn: () => Promise<T>): Promise<T> {
+  const deadline = Date.now() + 120_000;
+  for (;;) {
+    try {
+      mkdirSync(INSTALL_LOCK_DIR);
+      break;
+    } catch {
+      if (Date.now() > deadline) {
+        // Steal a stale lock rather than hang the suite on a crashed run.
+        rmSync(INSTALL_LOCK_DIR, { recursive: true, force: true });
+        continue;
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    rmSync(INSTALL_LOCK_DIR, { recursive: true, force: true });
+  }
+}

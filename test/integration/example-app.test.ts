@@ -11,7 +11,7 @@ import { Pressable, Text, View } from "react-native";
 import { render } from "@testing-library/react-native";
 import { existsSync, mkdirSync, rmSync, writeFileSync, cpSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
+import { pluginSourceStamp, withInstallLock } from "../helpers/sandbox-stamp.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const CACHE = path.join(ROOT, ".virt-rn-fixture", "example-sandbox");
@@ -69,17 +69,19 @@ async function ensureCachedInstall(): Promise<void> {
   const needsInstall = !existsSync(path.join(CACHE, "node_modules")) || prev !== next;
   if (!needsInstall) return;
 
-  const install = Bun.spawn({
-    cmd: [process.execPath, "install"],
-    cwd: CACHE,
-    stdout: "pipe",
-    stderr: "pipe",
+  await withInstallLock(async () => {
+    const install = Bun.spawn({
+      cmd: [process.execPath, "install"],
+      cwd: CACHE,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const code = await install.exited;
+    if (code !== 0) {
+      const err = await new Response(install.stderr).text();
+      throw new Error(`example-sandbox install failed: ${err}`);
+    }
   });
-  const code = await install.exited;
-  if (code !== 0) {
-    const err = await new Response(install.stderr).text();
-    throw new Error(`example-sandbox install failed: ${err}`);
-  }
 }
 
 function syncExampleApp(): void {

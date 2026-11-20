@@ -16,7 +16,7 @@ import { defineShim } from "../../src/shim.ts";
 import { loadConfig, resolveConfig } from "../../src/config.ts";
 import { registerCompat } from "../../src/index.ts";
 import { exampleLocalShim } from "../../examples/local-shim/example-shim.ts";
-import { pluginSourceStamp } from "../helpers/sandbox-stamp.ts";
+import { pluginSourceStamp, withInstallLock } from "../helpers/sandbox-stamp.ts";
 
 const g = globalThis as typeof globalThis & Record<string, unknown>;
 
@@ -157,12 +157,14 @@ describe("contract: local shim under a real preload spawn", () => {
     const prev = existsSync(pkgPath) ? readFileSync(pkgPath, "utf8") : "";
     writeFileSync(pkgPath, next);
     if (!existsSync(path.join(CACHE, "node_modules")) || prev !== next) {
-      const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
-      const code = await install.exited;
-      if (code !== 0) {
-        const err = await new Response(install.stderr).text();
-        throw new Error(`compat sandbox install failed: ${err.slice(-400)}`);
-      }
+      await withInstallLock(async () => {
+        const install = Bun.spawn({ cmd: [process.execPath, "install"], cwd: CACHE, stdout: "pipe", stderr: "pipe" });
+        const code = await install.exited;
+        if (code !== 0) {
+          const err = await new Response(install.stderr).text();
+          throw new Error(`compat sandbox install failed: ${err.slice(-400)}`);
+        }
+      });
     }
     writeFileSync(
       path.join(CACHE, "bunfig.toml"),
@@ -197,7 +199,7 @@ test("local shim from rn-bun.config.ts registered via preload", () => {
   }
 
   test("preload registers the config-file shim", async () => {
-    ensureSandbox();
+    await ensureSandbox();
     const proc = Bun.spawn({
       cmd: [process.execPath, "test", "--bail", "compat-probe.test.ts"],
       cwd: CACHE,
