@@ -42,4 +42,12 @@ Legend: **behavioral** = the mock models observable native behavior. **presentat
 
 ## Benchmark
 
-Cold/warm wall-clock of the Expo fixture under the plugin vs jest-expo: see `scripts/bench/run-bench.ts` results recorded in the release PR (kept out of git — output goes to `.compat-out/`).
+`bun run scripts/bench/run-bench.ts` compares the equivalent RNTL operation corpus (test/oracle) under both runners, cold (no transform/jest caches) and warm (caches hot). Latest run (Bun 1.4.4, Linux):
+
+| Suite | Cold | Warm median |
+| --- | --- | --- |
+| bun plugin (oracle corpus) | 176ms | 171ms |
+| jest-expo (oracle corpus) | 129ms | 1491ms |
+| **speedup** | 0.73x | **8.72x** |
+
+Context: the full Expo fixture suite runs cold in 456ms under the plugin (bun-only number; no jest-side equivalent exists in this repo). The cold number is honest: bun rebuilds the RN Flow transform cache from scratch, while a single-test jest process starts fast. Real-world warm reruns — the common case in development — see the multi-x advantage. Results are record-only; the differential oracle remains the release gate. Full reports land in `.compat-out/bench-report.json`.
