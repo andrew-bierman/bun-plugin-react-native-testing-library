@@ -9,6 +9,7 @@
  * Exit codes: 0 clean, 1 uncovered dependencies or load errors.
  */
 
+import path from "node:path";
 import { runDoctorAudit, scaffoldShim, type DoctorReport } from "../src/doctor.ts";
 
 function renderTable(report: DoctorReport): string {
@@ -73,10 +74,14 @@ async function main(): Promise<number> {
       return 2;
     }
     try {
-      const { path } = scaffoldShim(pkg, cwd);
-      console.log(`Wrote ${path}`);
+      const { path: scaffoldPath } = scaffoldShim(pkg, cwd);
+      const relImport = path
+        .relative(cwd, scaffoldPath)
+        .replaceAll("\\", "/")
+        .replace(/\.(ts|tsx)$/, "");
+      console.log(`Wrote ${scaffoldPath}`);
       console.log(`Register it in rn-bun.config.ts:`);
-      console.log(`  import { shim } from "./rn-bun.shims/${pkg.split("/").pop()}.ts";`);
+      console.log(`  import { shim } from "./${relImport}";`);
       console.log(`  export default { compat: { shims: [shim] } };`);
       return 0;
     } catch (err) {

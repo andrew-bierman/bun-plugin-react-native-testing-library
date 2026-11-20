@@ -80,12 +80,19 @@ const SKIP_DIRS = new Set(["node_modules", ".git", ".virt-rn-fixture", ".rn-bun-
 const SCAN_DEPTH_LIMIT = 6;
 const SCAN_FILE_LIMIT = 500;
 
-const IMPORT_PATTERNS = [
-  /import\s+["']([^"']+)["']/g,
-  /import\s+[\s\S]?from\s+["']([^"']+)["']/g,
-  /require\(\s*["']([^"']+)["']\s*\)/g,
-  /import\(\s*["']([^"']+)["']\s*\)/g,
+const IMPORT_PATTERNS: { re: RegExp; typeAware?: boolean }[] = [
+  // Named/default/namespace imports: `import X from "p"`, `import { a } from "p"`.
+  // Type-only imports are erased at runtime and cannot fail resolution.
+  { re: /import\s+([^"';]+?)\s+from\s*["']([^"']+)["']/g, typeAware: true },
+  // Side-effect imports: `import "p"`.
+  { re: /import\s+["']([^"']+)["']/g },
+  { re: /require\(\s*["']([^"']+)["']\s*\)/g },
+  { re: /import\(\s*["']([^"']+)["']\s*\)/g },
 ];
+
+function isTypeOnlyImport(clause: string): boolean {
+  return clause.trim().startsWith("type ");
+}
 
 function* iterTestFiles(dir: string, depth: number, count: { n: number }): Generator<string> {
   if (depth > SCAN_DEPTH_LIMIT || count.n > SCAN_FILE_LIMIT) return;
@@ -134,11 +141,12 @@ export function scanUnresolvedEcosystemImports(cwd: string, disabledShims: reado
       continue;
     }
     const specifiers = new Set<string>();
-    for (const pattern of IMPORT_PATTERNS) {
-      pattern.lastIndex = 0;
+    for (const { re, typeAware } of IMPORT_PATTERNS) {
+      re.lastIndex = 0;
       let match: RegExpExecArray | null;
-      while ((match = pattern.exec(source)) != null) {
-        const spec = match[1];
+      while ((match = re.exec(source)) != null) {
+        if (typeAware && isTypeOnlyImport(match[1] ?? "")) continue;
+        const spec = match[2] ?? match[1];
         if (spec && !spec.startsWith(".") && !spec.startsWith("/") && !spec.startsWith("#")) {
           specifiers.add(spec);
         }

@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runDoctorAudit, scaffoldShim } from "../../src/doctor.ts";
@@ -48,6 +48,34 @@ describe("doctor: audit", () => {
       expect(report.uncovered).toContain("react-native-fancy-view");
     } finally {
       rmSync(uncoveredDir, { recursive: true, force: true });
+    }
+  });
+
+  test("audit includes compat shims declared in rn-bun.config.ts", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "doctor-cfgfile-"));
+    try {
+      writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ name: "cfgfile-app", dependencies: { react: "19.2.8" } }),
+      );
+      writeFileSync(
+        path.join(dir, "rn-bun.config.ts"),
+        `export default { compat: { shims: [{ name: "cfg-file-shim", packages: ["react"], register: () => {} }] } };\n`,
+      );
+      // The shim activates only when its packages resolve from the audit dir.
+      mkdirSync(path.join(dir, "node_modules"), { recursive: true });
+      symlinkSync(
+        path.resolve(import.meta.dir, "../../node_modules/react"),
+        path.join(dir, "node_modules", "react"),
+        "dir",
+      );
+      const report = runDoctorAudit(dir);
+      const row = report.shims.find((s) => s.name === "cfg-file-shim");
+      // The audit must reflect what the preload would register: the config
+      // file's local shims are planned, not silently absent.
+      expect(row?.state).toBe("planned");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 

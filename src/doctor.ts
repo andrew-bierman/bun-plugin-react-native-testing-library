@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { collectCompatSources, readConsumerPackageJson } from "./compat-packages.ts";
-import { type ResolvedConfig, resolveConfig } from "./config.ts";
+import { loadConfig, type ResolvedConfig } from "./config.ts";
 import { LIBRARY_REGISTRY, resolveRegistry } from "./libraries/index.ts";
 import { checkExpoJestExpoVersions } from "./libraries/expo/versions.ts";
 
@@ -105,7 +105,9 @@ function definitionsInfo(cwd: string): DoctorReport["definitions"] {
  */
 export function runDoctorAudit(cwd: string): DoctorReport {
   const pkg = readConsumerPackageJson(cwd);
-  const config = resolveConfig({});
+  // Same config resolution as the preload, targeted at the audited directory,
+  // so the report cannot drift from what a real run would register.
+  const config = loadConfig(cwd);
   const compatSources = collectCompatSources(config.compat.compatPackages, cwd);
 
   const plan = resolveRegistry(config, {

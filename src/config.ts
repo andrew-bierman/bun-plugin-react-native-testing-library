@@ -163,9 +163,10 @@ export function parseLibraryMocksEnv(raw: string | undefined): LibraryMocksOptio
 
 /**
  * Load config from env vars (+ optional `rn-bun.config.ts` if present).
- * Used by the preload entry only.
+ * Used by the preload entry and by the doctor audit; pass `cwd` to audit or
+ * load a directory other than the process cwd.
  */
-export function loadConfig(): ResolvedConfig {
+export function loadConfig(cwd: string = process.cwd()): ResolvedConfig {
   const platformEnv = process.env.RN_BUN_PLATFORM;
   const platform = platformEnv === "android" || platformEnv === "ios" ? platformEnv : undefined;
   const debug = process.env.RN_BUN_DEBUG === "1" || process.env.RN_BUN_DEBUG === "true";
@@ -177,7 +178,7 @@ export function loadConfig(): ResolvedConfig {
   try {
     // Optional consumer config — sync require so preload stays sync.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const resolved = Bun.resolveSync("./rn-bun.config.ts", process.cwd());
+    const resolved = Bun.resolveSync("./rn-bun.config.ts", cwd);
     // Dynamic import is async; for preload we use require via Bun.
     const mod = require(resolved);
     fileOpts = (mod?.default ?? mod ?? {}) as PluginOptions;
