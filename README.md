@@ -90,8 +90,9 @@ add environment setup / OS / Bun version axes). Gate artifacts never update trac
 | Bun | `1.4.0` (minimum) and latest stable (CI macOS axis) |
 | OS | Linux + macOS (`bun check` on both) |
 | Platform resolution | `ios` and `android` (`RN_BUN_PLATFORM`) |
-| react-native / react / test-renderer | Full clean-consumer matrix: **0.78 + React 19.0 + test-renderer 1.0**, **0.82 + 19.1 + 1.1**, **0.87 + 19.2 + 1.2**; light import jobs for intervening minors **0.79–0.86** |
+| react-native / react / test-renderer | Full clean-consumer matrix: **0.78 + React 19.0 + test-renderer 1.0**, **0.82 + 19.1 + 1.1**, **0.87 + 19.2 + 1.2**, **0.88 + 19.3 + 1.3**; light import jobs for intervening minors **0.79–0.86** |
 | `@testing-library/react-native` | **14.0.0** (minimum) and **14.0.1** |
+| Expo SDK | **SDK 57** (`test/real-world-expo`) and **SDK 58 / RN 0.88** (`test/real-world-expo58`) fixtures |
 | Differential oracle | Deterministic RNTL traces under Bun plugin ≡ official RN Jest preset |
 
 Pinned sandbox versions used for third-party shims: React **19.2.8**, RN **0.87.1**, RNTL **14.0.1**, test-renderer **1.2.x**.
